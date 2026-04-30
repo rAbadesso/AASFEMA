@@ -1,3 +1,4 @@
 /src/best-model-epoch=1339-val_dice=0.9170.ckpt
-/src/D1.nii.gz
+/src/*.nii.gz
+/src/*.nrrd
 .idea
