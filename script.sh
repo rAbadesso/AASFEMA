@@ -38,7 +38,7 @@ SRC_DIR="src"
 
 # Define the paths for the script and model
 PIPELINE_SCRIPT="${SRC_DIR}/main_pipeline.py"
-MODEL_PATH="${SRC_DIR}/best-model-epoch=1339-val_dice=0.9170.ckpt"
+MODEL_PATH="${SRC_DIR}/SegResNet-epoch=2399-val_dice=0.9146.ckpt"
 
 # Ensure output directory exists
 mkdir -p "$OUT_DIR"
@@ -47,7 +47,7 @@ echo "Starting unified automated pipeline for ${BASENAME}..."
 
 # 3. Run the full Unified Python Pipeline
 # (The python script now handles the generation of all .seg.nii.gz, .vtp, and .csv files)
-python "$PIPELINE_SCRIPT" \
+python -W ignore "$PIPELINE_SCRIPT" \
     --model_path "$MODEL_PATH" \
     --input_image "$INPUT_FILE" \
     --output_dir "$OUT_DIR" \
