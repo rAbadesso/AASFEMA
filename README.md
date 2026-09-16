@@ -4,49 +4,59 @@
 [![MONAI](https://img.shields.io/badge/MONAI-Deep%20Learning-green)](https://project-monai.github.io/)
 [![VMTK](https://img.shields.io/badge/VMTK-Vascular%20Modeling-orange)](http://www.vmtk.org/)
 
-> **Master's Dissertation Project**\
+> **Master's Dissertation**\
 > *Author:* Ruben Filipe Nascimento Abadesso\
-> *Institution:* Universidade da Beira Interior (UBI)
+> *Institution:* Universidade da Beira Interior (UBI)\
+> *Date:* September 2026
 
 ## Overview
 
-This repository contains an automated computational framework designed to segment the aortic vessel tree and extract quantitative 3D geometric features from Computed Tomography Angiography (CTA) scans. 
+This repository contains a fully automated computational framework designed to segment the Aortic Vessel Tree (AVT) and extract 28 quantitative 3D geometric biomarkers from Computed Tomography Angiography (CTA) scans. 
 
-Cardiovascular diseases, particularly aortic aneurysms and dissections, are often evaluated clinically using simple 1D maximum diameter measurements. This pipeline aims to bridge the gap between raw radiological data and actionable clinical insights by providing a fully automated, reproducible workflow for extracting complex morphologic descriptors (such as 3D tortuosity, local curvature, and torsion) that better reflect pathological remodeling.
+Cardiovascular diseases, particularly Aortic Aneurysms (AAs) and Aortic Dissections (ADs), are routinely evaluated clinically using unidimensional measurements like maximum diameter. This simplistic approach fails to fundamentally capture the complex 3D morphological changes associated with disease progression. This pipeline streamlines morphological evaluation by converting discrete radiological scans into structured tabular datasets, forming the quantitative foundation for future machine learning predictive models to assess rupture risk.
+
+![System Overview](images/framework_overview.png)
+*(Figure 4.1: Diagram overview of the method's framework)*
 
 ## Architecture & Methodology
 
-The pipeline integrates state-of-the-art deep learning with robust geometric modeling, split into two main computational phases:
+The pipeline integrates state-of-the-art deep learning with robust geometric modeling, executing through four continuous phases:
 
-1. **Volumetric Segmentation (MONAI + SwinUNETR):** The pipeline preprocesses heterogeneous CTA scans (orientation, Hounsfield Unit normalization, voxel resampling to 1x1x1 mm) and utilizes a SwinUNETR hierarchical vision transformer to accurately delineate the aorta and its principal branches.
-2. **Geometric Analysis (VMTK):** The generated 3D masks are converted into high-fidelity surface meshes. Centerlines are extracted using Voronoi diagram-based algorithms, allowing for the precise calculation of orthogonal cross-sections and advanced shape descriptors along the vessel's longitudinal axis.
+1. **Data Preprocessing:** Addresses severe spatial and radiodensity heterogeneity across multicenter datasets. Steps include anatomical reorientation, isotropic resampling to 1x1x1 mm, automated foreground cropping, and Z-score intensity standardization.
+2. **Volumetric Segmentation (MONAI + SegResNet):** Utilizes the highly robust **SegResNet** convolutional architecture. Operating via a sliding window inference mechanism with 50% overlap, the network accurately delineates the aorta, supra-aortic branches, and iliac arteries from surrounding tissue.
+3. **Topological Processing & Centerline Extraction (VMTK):** Converts discrete voxel masks into continuous mathematical surface meshes using the Marching Cubes algorithm and volume-preserving Taubin smoothing. The central axes are computed using Voronoi diagrams.
+4. **Quantitative Feature Export:** Projects the computed centerlines back onto the 3D surface to extract orthogonal clinical descriptors at regular longitudinal intervals.
+
+![Segmented Aorta Surface](images/segmented_aorta.png) ![Segmented Aorta Surface](images/centerline.png) 
+*(Figure 4.13 & 4.14: Smoothed 3D surface mesh and the corresponding topological centerline network)*
 
 ## Extracted Biomarkers
 
-The final output is a flattened `.csv` file containing point-by-point data along the entire aortic network, including:
-* Maximum Inscribed Sphere Radius (Diameter)
-* Local Curvature & Torsion
-* Frenet Frames (Tangent, Normal, Binormal vectors)
-* Cross-Sectional Area
-* Equivalent Ellipticity & Eccentricity metrics
+The final output is a flattened `.csv` file containing multi-dimensional arrays optimized for machine learning ingestion. Features include:
+* **Cross-Sectional Metrics:** Maximum Inscribed Sphere Radius (Diameter), Cross-Sectional Area, and Shape Index (Eccentricity/Ellipticity).
+* **3D Path Dynamics:** Local Curvature, Torsion, and Incremental Tortuosity Ratio.
+* **Topology:** Frenet-Serret frames (Tangent, Normal, and Binormal vectors) alongside structural edge array networks.
 
 ## Project Structure
 
 ```text
 .
-├── environment.yml                                                  # Conda environment dependencies
-├── script.sh                                                        # Main executable bash wrapper
-├── README.md                                                        # Project documentation
-├── Relatorio_do_Projeto_de_Dissertacao_Mestrado_Ruben_Abadesso.pdf  # Full Dissertation Document
-├── src/
-│   ├── main_pipeline.py                                             # Unified Python script handling all phases
-│   ├── best-model-epoch=1339-val_dice=0.9170.ckpt                   # Trained SwinUNETR weights
-│   └── D1.nii.gz                                                    # Example 3D input scan
-└── output/                                                          # Generated output files
-    ├── D1.seg.nii.gz                                                # Binary segmentation mask
-    ├── D1_centerline_geometry.vtp                                   # 3D Centerlines and embedded metrics
-    ├── D1_cross_sections.vtp                                        # 3D Orthogonal cross-sections
-    └── D1.csv                                                       # Aligned geometric features dataset
+├── Dissertacao_Mestrado_Ruben_Abadesso.pdf
+├── environment.yml
+├── output/
+│   ├── D2_centerline_geometry.vtp
+│   ├── D2.csv
+│   ├── D2_smooth_surface.vtp
+│   ├── R6-AAA_centerline_geometry.vtp
+│   ├── R6-AAA.csv
+│   └── R6-AAA_smooth_surface.vtp
+├── README.md
+├── script.sh
+└── src/
+    ├── D2.nii.gz
+    ├── main_pipeline.py
+    ├── R6-AAA.nii.gz
+    └── SegResNet-epoch=2399-val_dice=0.9146.ckpt
 ```
 
 ## Installation
@@ -55,14 +65,14 @@ The pipeline requires specific versions of PyTorch, MONAI, VMTK, and PyVista. It
 
 ```bash
 # Clone the repository
-git clone https://github.com/rAbadesso/AASFEMA.git
+git clone [https://github.com/rAbadesso/AASFEMA.git](https://github.com/rAbadesso/AASFEMA.git)
 cd AASFEMA
 
 # Create and activate the environment
 conda env create -f environment.yml
 conda activate VmtkMonai
 ```
-*(it's not necessary to activate the environment, since when running script.sh, this will activate it automatically)*
+*(Note: It is not necessary to activate the environment manually for execution, as running `script.sh` will activate it automatically.)*
 
 ## Usage
 
@@ -72,23 +82,31 @@ The primary entry point is the `script.sh` bash wrapper, which automates directo
 # Make the script executable (only needed once)
 chmod +x script.sh
 
-# 1. Run the pipeline (Defaults to GPU 0)
-./script.sh src/D1.nii.gz
+# 1. Run the pipeline on a test case (Defaults to GPU 0)
+./script.sh src/D2.nii.gz
 
 # 2. Run on a specific GPU (e.g., GPU 1)
-./script.sh src/D1.nii.gz 1
+./script.sh src/R6-AAA.nii.gz 1
 
 # 3. Run on CPU only
-./script.sh src/D1.nii.gz -1
+./script.sh src/D2.nii.gz -1
 ```
 
 ### Interactive Centerline Extraction
-During execution, a PyVista 3D interactive window will appear displaying the segmented surface mesh:
-1. Hover your cursor over the root/origin of the vascular tree (e.g., the aortic root).
-2. Press **SPACE** to place a red marker (source point).
-3. Press **'Q'** to confirm. 
+During execution, a PyVista 3D interactive window will temporarily render the smoothed surface mesh. Because supra-aortic branches extend superiorly, simple coordinate heuristics fail, requiring manual root definition:
+1. Hover your mouse over the true anatomical **Aortic Root**.
+2. Press **SPACE** to cast a ray and place the origin marker (green sphere).
+3. Press **'Q'** to confirm and extract the network topology.
 
-The system will automatically detect the distal endpoints, compute the Voronoi centerlines, and display a final verification window showing the source (Green) and target (Red) points. Press **'Q'** again to finalize feature extraction and CSV export.
+The system will automatically detect all distal endpoints (yellow spheres). 
+* To remove any erroneous anatomical branches, hover over the yellow endpoint and press **'R'**.
+* Press **'Q'** again to finalize the verification, compute the Voronoi centerlines, and export the dataset.
+
+![Interactive Root Selection](images/interactive_window.png)
+*(Figure 4.12: Interactive graphical interface for topological mapping and source point selection)*
 
 ## Dataset & Training Performance
-The segmentation model was trained and validated on the **MICCAI SEG.A. 2023 Challenge (Aortic Vessel Tree)** dataset, a multicenter dataset comprising 56 CTA scans with diverse pathologies and acquisition protocols. The SwinUNETR model achieved an average **Dice Similarity Coefficient (DSC) of 0.93** on the test set.
+
+The volumetric segmentation architecture was trained and validated on a highly heterogeneous, multicenter dataset of 56 CTA scans from the MICCAI SEG.A. 2023 Challenge, which includes complex pathologies such as AAAs and ADs.
+
+A comprehensive comparative analysis of five deep learning architectures (including 3D U-Net, DynUNet, UNETR, and SwinUNETR) definitively established the superiority of the **SegResNet** convolutional model. Benefiting from its robust contracting encoder and residual connections, SegResNet efficiently overcame the dataset's volume constraints to achieve an exceptional average **Dice Similarity Coefficient (DSC) of 0.922** and a 95th percentile Hausdorff Distance (HD95) of 36.30 mm.
