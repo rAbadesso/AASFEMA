@@ -120,6 +120,7 @@ The system will automatically detect all distal endpoints (yellow spheres).
 <p align="center">
   <em>Figure 4.12: Interactive graphical interface for topological mapping and source point selection</em>
 </p>
+
 ## Dataset & Training Performance
 
 The volumetric segmentation architecture was trained and validated on a highly heterogeneous, multicenter dataset of 56 CTA scans from the MICCAI SEG.A. 2023 Challenge, which includes complex pathologies such as AAAs and ADs.
