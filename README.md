@@ -15,8 +15,13 @@ This repository contains a fully automated computational framework designed to s
 
 Cardiovascular diseases, particularly Aortic Aneurysms (AAs) and Aortic Dissections (ADs), are routinely evaluated clinically using unidimensional measurements like maximum diameter. This simplistic approach fails to fundamentally capture the complex 3D morphological changes associated with disease progression. This pipeline streamlines morphological evaluation by converting discrete radiological scans into structured tabular datasets, forming the quantitative foundation for future machine learning predictive models to assess rupture risk.
 
-![System Overview](images/framework_overview.png)
-*(Figure 4.1: Diagram overview of the method's framework)*
+<p align="center">
+  <img src="images/framework_overview.png">
+</p>
+
+<p align="center">
+  <em>Figure 4.1: Diagram overview of the method's framework</em>
+</p>
 
 ## Architecture & Methodology
 
@@ -27,8 +32,14 @@ The pipeline integrates state-of-the-art deep learning with robust geometric mod
 3. **Topological Processing & Centerline Extraction (VMTK):** Converts discrete voxel masks into continuous mathematical surface meshes using the Marching Cubes algorithm and volume-preserving Taubin smoothing. The central axes are computed using Voronoi diagrams.
 4. **Quantitative Feature Export:** Projects the computed centerlines back onto the 3D surface to extract orthogonal clinical descriptors at regular longitudinal intervals.
 
-![Segmented Aorta Surface](images/segmented_aorta.png) ![Segmented Aorta Surface](images/centerline.png) 
-*(Figure 4.13 & 4.14: Smoothed 3D surface mesh and the corresponding topological centerline network)*
+<p align="center">
+  <img src="images/segmented_aorta.png" width="45%">
+  <img src="images/centerline.png" width="45%">
+</p>
+
+<p align="center">
+  <em>Figure 4.13 & 4.14: Smoothed 3D surface mesh and the corresponding topological centerline network</em>
+</p>
 
 ## Extracted Biomarkers
 
@@ -104,7 +115,13 @@ The system will automatically detect all distal endpoints (yellow spheres).
 
 ![Interactive Root Selection](images/interactive_window.png)
 *(Figure 4.12: Interactive graphical interface for topological mapping and source point selection)*
+<p align="center">
+  <img src="images/interactive_window.png">
+</p>
 
+<p align="center">
+  <em>Figure 4.12: Interactive graphical interface for topological mapping and source point selection</em>
+</p>
 ## Dataset & Training Performance
 
 The volumetric segmentation architecture was trained and validated on a highly heterogeneous, multicenter dataset of 56 CTA scans from the MICCAI SEG.A. 2023 Challenge, which includes complex pathologies such as AAAs and ADs.
