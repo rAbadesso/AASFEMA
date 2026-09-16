@@ -113,8 +113,6 @@ The system will automatically detect all distal endpoints (yellow spheres).
 * To remove any erroneous anatomical branches, hover over the yellow endpoint and press **'R'**.
 * Press **'Q'** again to finalize the verification, compute the Voronoi centerlines, and export the dataset.
 
-![Interactive Root Selection](images/interactive_window.png)
-*(Figure 4.12: Interactive graphical interface for topological mapping and source point selection)*
 <p align="center">
   <img src="images/interactive_window.png">
 </p>
