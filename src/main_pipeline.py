@@ -28,7 +28,6 @@ try:
 except ImportError:
     resource = None
 
-warnings.filterwarnings("ignore")
 
 def get_peak_ram_gb():
     """ Returns the Peak RAM used by the entire OS process up to this point in GB. """
@@ -47,9 +46,11 @@ def reset_vram_stats(device=None):
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats(device)
 
+
 class VascularSegmentation:
     """ Handles the SegResNet inference to generate a segmentation mask from a medical image. """
     def __init__(self, model_path, input_image, input_label=None, output_dir="output"):
+        # Initialize paths and configure device availability (CUDA vs CPU)
         self.model_path = model_path
         self.input_image = input_image
         self.input_label = input_label
@@ -60,9 +61,11 @@ class VascularSegmentation:
         """ Executes the deep learning sliding window inference and saves the output. """
         print(f"  -> Initializing Model on {self.device}...")
 
+        # Dynamically set dataset keys and interpolation modes based on presence of ground-truth labels
         keys = ["image", "label"] if self.input_label else ["image"]
         spacing_mode = ("bilinear", "nearest") if self.input_label else ("bilinear",)
 
+        # Define preprocessing transformation pipeline for medical imaging volumes
         test_transforms = Compose([
             LoadImaged(keys=keys),
             EnsureChannelFirstd(keys=keys, channel_dim="no_channel"),
@@ -77,9 +80,11 @@ class VascularSegmentation:
         if self.input_label:
             data_dict["label"] = self.input_label
 
+        # Set up MONAI dataset and data loader for single-batch evaluation
         test_ds = Dataset(data=[data_dict], transform=test_transforms)
         test_loader = DataLoader(test_ds, num_workers=1, batch_size=1, pin_memory=True, shuffle=False)
 
+        # Define post-processing transforms to clean prediction masks and map them back to original coordinate spaces
         post_pred_transforms = Compose([
             EnsureTyped(keys="pred"),
             Activationsd(keys="pred", softmax=True),
@@ -106,6 +111,7 @@ class VascularSegmentation:
             ),
         ])
 
+        # Instantiate SegResNet neural network architecture for volumetric segmentation
         model = SegResNet(
             spatial_dims=3,
             in_channels=1,
@@ -115,6 +121,7 @@ class VascularSegmentation:
             dropout_prob=0.2
         ).to(self.device)
 
+        # Load trained weights from checkpoint and resolve state dictionary keys
         checkpoint = torch.load(self.model_path, map_location=self.device)
         state_dict = checkpoint['state_dict']
         new_state_dict = {}
@@ -129,6 +136,7 @@ class VascularSegmentation:
         model.eval()
 
         print("  -> Running Sliding Window Inference...")
+        # Execute sliding window inference without tracking gradients to optimize VRAM
         with torch.no_grad():
             for test_data in tqdm(test_loader, desc="  -> Segmenting Volume"):
                 test_inputs = test_data["image"].to(self.device)
@@ -140,9 +148,11 @@ class VascularSegmentation:
                     overlap=0.5
                 )
 
+                # Decollate batch items and pass them through post-processing and saving utilities
                 decollated_data = decollate_batch(test_data)
                 for data in decollated_data:
                     post_pred_transforms(data)
+
 
 class SpacebarPuncher:
     """ Handles the Step 1 interactive 3D rendering and hole punching process for root selection. """
@@ -151,9 +161,11 @@ class SpacebarPuncher:
         self.hole_radius = hole_radius
         self.original_mesh = pv.wrap(self.vtk_surface)
         
+        # Initialize PyVista plotter window for interactive root selection
         self.plotter = pv.Plotter(title="Step 1: Interactive Root Selection", window_size=[1600, 1200])
         self.plotter.set_background("white")
         
+        # Add the 3D surface mesh with custom aesthetic material properties
         self.mesh_actor = self.plotter.add_mesh(
             self.original_mesh, 
             color='#d94c4c', 
@@ -166,6 +178,7 @@ class SpacebarPuncher:
         self.selected_point = None
         self.marker_actor = None
 
+        # Display on-screen instructions for user guidance
         instructions = (
             "Step 1: Select Aortic Root\n"
             "--------------------------\n"
@@ -178,6 +191,7 @@ class SpacebarPuncher:
 
     def _space_pressed(self):
         """ Triggers a spatial ray-cast from the camera to the mesh surface. """
+        # Fetch current mouse cursor event position in the window viewport
         pos = self.plotter.iren.interactor.GetEventPosition()
         picker = vtk.vtkCellPicker()
         picker.SetTolerance(0.005)
@@ -185,6 +199,7 @@ class SpacebarPuncher:
         picker.PickFromListOn()
         picker.Pick(pos[0], pos[1], 0, self.plotter.renderer)
 
+        # If a valid mesh cell is hit by the ray-cast, record the 3D point coordinate
         if picker.GetCellId() != -1:
             pt = picker.GetPickPosition()
             self._select_point(pt)
@@ -195,6 +210,7 @@ class SpacebarPuncher:
         if self.marker_actor is not None:
             self.plotter.remove_actor(self.marker_actor)
         
+        # Render a temporary green sphere at the selected aortic root position
         marker = pv.Sphere(radius=self.hole_radius * 1.5, center=point)
         self.marker_actor = self.plotter.add_mesh(marker, color='#3cb44b', pickable=False)
 
@@ -205,6 +221,7 @@ class SpacebarPuncher:
         saved_cpos = self.plotter.show(return_cpos=True)
         interaction_time = time.time() - interaction_start_time
 
+        # Physically clip a spherical hole out of the mesh at the selected root location
         open_mesh = self.original_mesh.copy()
         if self.selected_point is not None:
             distances = np.linalg.norm(open_mesh.points - self.selected_point, axis=1)
@@ -213,6 +230,7 @@ class SpacebarPuncher:
             open_mesh = clipped.extract_surface()
 
         return open_mesh, self.selected_point, saved_cpos, interaction_time
+
 
 class TopologyViewer:
     """ Displays the Step 2 verified topological endpoints with deletion capability. """
@@ -224,6 +242,7 @@ class TopologyViewer:
         self.saved_cpos = saved_cpos
         self.original_mesh = pv.wrap(self.vtk_surface)
         
+        # Initialize second PyVista window for reviewing network topology and endpoints
         self.plotter = pv.Plotter(title="Step 2: Network Topology Review", window_size=[1600, 1200])
         self.plotter.set_background("white")
         
@@ -236,10 +255,12 @@ class TopologyViewer:
             smooth_shading=True
         )
         
+        # Render the confirmed root point (source) as a green sphere
         if self.source_point is not None:
             root_marker = pv.Sphere(radius=self.hole_radius * 1.5, center=self.source_point)
             self.plotter.add_mesh(root_marker, color='#3cb44b', pickable=False)
             
+        # Render all detected branch endpoints (targets) as pickable yellow spheres
         self.target_actors = {}
         if self.target_points is not None and len(self.target_points) > 0:
             for pt in self.target_points:
@@ -266,6 +287,7 @@ class TopologyViewer:
         picker.Pick(pos[0], pos[1], 0, self.plotter.renderer)
         actor = picker.GetActor()
         
+        # If user presses 'R' while hovering over a yellow endpoint actor, remove it
         if actor in self.target_actors:
             self.plotter.remove_actor(actor)
             del self.target_actors[actor]
@@ -274,12 +296,14 @@ class TopologyViewer:
     def run(self):
         """ Shows the topology validation window and returns pruned endpoints and time. """
         interaction_start_time = time.time()
+        # Restore identical camera orientation captured from Step 1 window
         if self.saved_cpos is not None:
             self.plotter.camera_position = self.saved_cpos
         self.plotter.show()
         interaction_time = time.time() - interaction_start_time
         
         return self.target_points, interaction_time
+
 
 class CenterlineProcessing:
     """ Computes the topological centerlines, geometry, and cross-sections via VMTK. """
@@ -322,6 +346,7 @@ class CenterlineProcessing:
 
     def get_network_endpoints(self, network_polydata):
         """ Extracts the terminal leaf nodes from a VMTK network polydata. """
+        # Clean network topology to merge duplicate points within absolute tolerance
         cleaner = vtk.vtkCleanPolyData()
         cleaner.SetInputData(network_polydata)
         cleaner.PointMergingOn()
@@ -330,6 +355,7 @@ class CenterlineProcessing:
         cleaner.Update()
         clean_network = cleaner.GetOutput()
 
+        # Build adjacency list representation of the network graph
         adj = defaultdict(set)
         for i in range(clean_network.GetNumberOfCells()):
             cell = clean_network.GetCell(i)
@@ -340,9 +366,11 @@ class CenterlineProcessing:
                     adj[u].add(v)
                     adj[v].add(u)
 
+        # Identify leaf nodes (nodes with exactly one neighbor)
         leaves = [node for node, neighbors in adj.items() if len(neighbors) == 1]
         points = []
 
+        # Trace backwards slightly from each leaf node to get stable endpoint coordinates
         for leaf in leaves:
             current_node = leaf
             previous_node = None
@@ -392,6 +420,7 @@ class CenterlineProcessing:
             print(f"  -> ERROR: Found {len(endpoints)} points. Minimum 2 required.")
             return None, None, None, interaction_time_1
 
+        # Match the user's initial click to the closest generated topological endpoint (root source)
         distances = np.linalg.norm(endpoints - selected_point, axis=1)
         source_idx = np.argmin(distances)
         source_point = endpoints[source_idx]
@@ -454,6 +483,7 @@ class CenterlineProcessing:
         sections.Execute()
         return pv.wrap(sections.CenterlineSections)
 
+
 class CenterlineNode:
     """ Datastructure for constructing a continuous topological tree of the vascular centerlines. """
     def __init__(self, coord):
@@ -513,6 +543,7 @@ class FeatureExporter:
                     raw_cross_data[key] = self.cross_mesh.cell_data[key]
 
         pts_count = 0
+        # Iterate over individual centerline branch cells to extract geometric attributes
         for i in range(self.geom_mesh.n_cells):
             cell = self.geom_mesh.extract_cells(i)
             n_pts = cell.n_points
@@ -548,6 +579,7 @@ class FeatureExporter:
         cross_points = np.concatenate(cleaned_cross_centers) if cleaned_cross_centers else np.full((total_pts, 3),
                                                                                                    np.nan)
 
+        # Build coordinate-to-node tree mapping to compute cumulative path lengths and tortuosity
         coord_to_node = {}
         for pts in cleaned_branches:
             prev_node = None
@@ -566,6 +598,7 @@ class FeatureExporter:
         q = deque(roots)
         seen = set([id(r) for r in roots])
 
+        # Traverse tree breadth-first to propagate cumulative lengths and compute incremental tortuosity
         while q:
             parent_node = q.popleft()
             for child_node in parent_node.children:
@@ -605,6 +638,7 @@ class FeatureExporter:
                 return np.concatenate(cleaned_cell_data[key])
             return np.full(total_pts, np.nan)
 
+        # Pack all collected geometric parameters into a structured dictionary for tabular export
         data_dict = {
             'Centerline_X': geom_points[:, 0], 'Centerline_Y': geom_points[:, 1], 'Centerline_Z': geom_points[:, 2],
             'CrossCenter_X': cross_points[:, 0], 'CrossCenter_Y': cross_points[:, 1],
@@ -629,6 +663,7 @@ class FeatureExporter:
         df = pd.DataFrame(data_dict)
         csv_filename = os.path.join(self.output_dir, f"{self.patient_id}.csv")
         df.to_csv(csv_filename, index=False)
+
 
 def main():
     """ Directs the automated pipeline handling arguments, execution flow, and final resource reporting. """
@@ -658,6 +693,7 @@ def main():
     failsafe_exporter.export()
 
     try:
+        # Utilize a temporary directory to handle intermediate NIfTI segmentation outputs safely
         with tempfile.TemporaryDirectory() as temp_dir:
             seg_file = os.path.join(temp_dir, f"{basename}.seg.nii.gz")
 
@@ -668,6 +704,7 @@ def main():
             reset_vram_stats()
             t0 = time.time()
 
+            # Execute Step 1: Deep learning segmentation task
             segmentation_task = VascularSegmentation(
                 model_path=args.model_path,
                 input_image=args.input_image,
@@ -700,6 +737,7 @@ def main():
                 distance_back=args.distance_back
             )
 
+            # Execute Step 2: Surface generation, interactive root/topology check, and centerline extraction
             geom_pv, centerlines_vtk, vtk_surface, total_interaction_time = centerline_task.run_up_to_geometry()
 
             time_geom = (time.time() - t0) - total_interaction_time
@@ -717,6 +755,7 @@ def main():
                 reset_vram_stats()
                 t0 = time.time()
 
+                # Execute Step 3: Cross-sectional evaluation and final feature table compilation
                 cross_pv = centerline_task.compute_cross_sections(centerlines_vtk, vtk_surface)
 
                 full_exporter = FeatureExporter(
@@ -747,6 +786,7 @@ def main():
     print(f"  Overall Peak VRAM        : {overall_peak_vram:.2f} GB")
     print(f"  Overall Peak OS RAM      : {total_ram:.2f} GB")
     print("=" * 60 + "\n")
+
 
 if __name__ == '__main__':
     main()
