@@ -2,8 +2,6 @@ import os
 import time
 import argparse
 import tempfile
-import warnings
-import sys
 import torch
 import pyvista as pv
 import numpy as np
@@ -12,11 +10,10 @@ import vtk
 from collections import defaultdict, deque
 from tqdm import tqdm
 
-from monai.metrics import DiceMetric
 from monai.inferers import sliding_window_inference
 from monai.data import DataLoader, Dataset, decollate_batch
 from monai.transforms import (
-    AsDiscrete, Compose, LoadImaged, EnsureChannelFirstd, EnsureTyped,
+    Compose, LoadImaged, EnsureChannelFirstd, EnsureTyped,
     Spacingd, NormalizeIntensityd, CropForegroundd, Invertd, SaveImaged,
     Activationsd, AsDiscreted, Orientationd, KeepLargestConnectedComponentd
 )
